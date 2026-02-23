@@ -1,0 +1,735 @@
+
+import React, { useState, useEffect } from "react";
+import { base44 } from "@/api/base44Client";
+import { useNavigate } from "react-router-dom";
+import { createPageUrl } from "@/utils";
+import { useQuery } from "@tanstack/react-query";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { Card } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { 
+  Upload, 
+  CheckCircle2, 
+  Loader2,
+  X,
+  Gift,
+  TrendingUp,
+  Search,
+  ArrowLeft,
+  Sparkles,
+  Camera,
+  Printer,
+  Shirt,
+  Home as HomeIcon,
+  BookOpen,
+  Image,
+  Users,
+  Palette,
+  Package
+} from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
+import { toast } from "sonner";
+import ProductCategoryCard from "@/components/order/ProductCategoryCard";
+import ProductCard from "@/components/order/ProductCard";
+
+// All product categories with their products
+const productCategories = [
+  {
+    id: "personalized_gifts",
+    title: "Personalized Gifts",
+    description: "Custom photo mugs, cushions, frames & more",
+    icon: "🎁",
+    startingPrice: 199,
+    isPopular: true,
+    products: [
+      { id: "magic_mug", name: "Magic Mug", description: "Color-changing mug with your photo", price: 299, icon: "☕", popular: true, fastDelivery: true, deliveryTime: "2-3 days" },
+      { id: "travel_mug", name: "Travel Mug", description: "Insulated mug for on-the-go", price: 399, icon: "🥤", deliveryTime: "2-3 days" },
+      { id: "ceramic_mug", name: "Ceramic Mug", description: "Classic white ceramic with print", price: 199, icon: "🍵", popular: true, deliveryTime: "1-2 days" },
+      { id: "cushion", name: "Photo Cushion", description: "Soft cushion with custom print", price: 449, icon: "🛋", deliveryTime: "3-4 days" },
+      { id: "pillow", name: "Memory Pillow", description: "Premium satin finish pillow", price: 549, icon: "💤", newProduct: true, deliveryTime: "3-4 days" },
+      { id: "photo_frame", name: "Photo Frame", description: "Elegant wooden frame", price: 349, icon: "🖼", deliveryTime: "2-3 days" },
+      { id: "collage_frame", name: "Collage Frame", description: "Multi-photo collage frame", price: 599, icon: "🎞", popular: true, deliveryTime: "3-4 days" },
+      { id: "keychain", name: "Photo Keychain", description: "Durable metal keychain", price: 99, icon: "🔑", fastDelivery: true, deliveryTime: "1 day" },
+      { id: "badge", name: "Custom Badge", description: "Pin badge with your design", price: 49, icon: "📍", fastDelivery: true, deliveryTime: "1 day" },
+      { id: "magnet", name: "Fridge Magnet", desiption: "Strong magnetic backing", price: 79, icon: "🧲", deliveryTime: "1-2 days" },
+      { id: "name_plate", name: "Name Plate", description: "Personalized desk/door name plate", price: 399, icon: "🏷", deliveryTime: "3-4 days" },
+      { id: "desk_plaque", name: "Desk Plaque", description: "Acrylic desk plaque with photo", price: 499, icon: "🏆", newProduct: true, deliveryTime: "3-4 days" },
+      { id: "clock", name: "Photo Clock", description: "Wall clock with your image", price: 599, icon: "🕐", deliveryTime: "4-5 days" },
+      { id: "calendar", name: "Custom Calendar", description: "12-month personalized calendar", price: 349, icon: "📅", popular: true, deliveryTime: "3-4 days" },
+      { id: "led_lamp", name: "LED Photo Lamp", description: "Glowing 3D photo lamp", price: 699, icon: "💡", popular: true, newProduct: true, deliveryTime: "4-5 days" },
+      { id: "couple_gift", name: "Couple Heart Gift", description: "Heart-shaped couple photo gift", price: 449, icon: "💑", deliveryTime: "3-4 days" },
+    ]
+  },
+  {
+    id: "wearable_prints",
+    title: "Wearable Prints",
+    description: "Custom T-shirts, hoodies, caps & bags",
+    icon: "👕",
+    startingPrice: 299,
+    isNew: true,
+    products: [
+      { id: "tshirt_photo", name: "Photo T-Shirt", description: "Cotton T-shirt with photo print", price: 399, icon: "👕", popular: true, deliveryTime: "2-3 days" },
+      { id: "tshirt_text", name: "Text T-Shirt", description: "T-shirt with custom text/slogan", price: 349, icon: "✍", deliveryTime: "2-3 days" },
+      { id: "tshirt_logo", name: "Logo T-Shirt", description: "T-shirt with logo/brand print", price: 349, icon: "🎨", deliveryTime: "2-3 days" },
+      { id: "hoodie", name: "Custom Hoodie", description: "Warm hoodie with your design", price: 799, icon: "🧥", popular: true, deliveryTime: "4-5 days" },
+      { id: "sweatshirt", name: "Sweatshirt", description: "Cozy sweatshirt with print", price: 699, icon: "👘", deliveryTime: "4-5 days" },
+      { id: "cap_print", name: "Printed Cap", description: "Adjustable cap with print", price: 249, icon: "🧢", fastDelivery: true, deliveryTime: "1-2 days" },
+      { id: "cap_embroidery", name: "Embroidered Cap", description: "Premium embroidered cap", price: 399, icon: "🎩", newProduct: true, deliveryTime: "3-4 days" },
+      { id: "tote_bag", name: "Tote Bag", description: "Canvas tote with custom design", price: 299, icon: "👜", popular: true, deliveryTime: "2-3 days" },
+      { id: "eco_bag", name: "Eco Bag", description: "Eco-friendly jute bag with print", price: 249, icon: "🌱", newProduct: true, deliveryTime: "2-3 days" },
+    ]
+  },
+  {
+    id: "stationery",
+    title: "Stationery & Office",
+    description: "Notebooks, cards, letterheads & more",
+    icon: "📚",
+    startingPrice: 49,
+    products: [
+      { id: "notebook", name: "Custom Notebook", description: "Personalized cover notebook", price: 199, icon: "📓", popular: true, deliveryTime: "2-3 days" },
+      { id: "diary", name: "Photo Diary", description: "Premium diary with your photo", price: 349, icon: "📔", deliveryTime: "3-4 days" },
+      { id: "journal", name: "Travel Journal", description: "Leather-bound custom journal", price: 449, icon: "📒", newProduct: true, deliveryTime: "3-4 days" },
+      { id: "pen_set", name: "Custom Pen Set", description: "Engraved pen with name", price: 149, icon: "🖊", fastDelivery: true, deliveryTime: "1-2 days" },
+      { id: "folder", name: "Presentation Folder", description: "Professional folders with logo", price: 79, icon: "📁", deliveryTime: "1-2 days" },
+      { id: "office_kit", name: "Office Stationery Kit", description: "Complete customized office set", price: 599, icon: "📎", deliveryTime: "3-4 days" },
+      { id: "visiting_card", name: "Visiting Cards", description: "Premium business cards (100 pcs)", price: 299, icon: "💳", popular: true, fastDelivery: true, deliveryTime: "1 day" },
+      { id: "id_card", name: "ID Cards", description: "Professional ID card printing", price: 49, icon: "🪪", fastDelivery: true, deliveryTime: "Same day" },
+      { id: "name_badge", name: "Name Badges", description: "Magnetic name badges", price: 99, icon: "📛", deliveryTime: "1-2 days" },
+      { id: "letterhead", name: "Letterhead", description: "Corporate letterhead (50 sheets)", price: 199, icon: "📄", deliveryTime: "2-3 days" },
+      { id: "envelope", name: "Custom Envelopes", description: "Branded envelopes (50 pcs)", price: 149, icon: "✉", deliveryTime: "2-3 days" },
+      { id: "stamp", name: "Rubber Stamp", description: "Custom business stamp", price: 249, icon: "🔖", popular: true, deliveryTime: "2-3 days" },
+      { id: "seal", name: "Business Seal", description: "Official embossed seal", price: 449, icon: "🔏", deliveryTime: "3-4 days" },
+    ]
+  },
+  {
+    id: "home_decor",
+    title: "Home & Wall Décor",
+    description: "Canvas prints, wall art & wallpapers",
+    icon: "🖼",
+    startingPrice: 299,
+    isPopular: true,
+    products: [
+      { id: "canvas_single", name: "Canvas Print", description: "Single canvas wall art", price: 599, icon: "🎨", popular: true, deliveryTime: "4-5 days" },
+      { id: "canvas_split", name: "Split Canvas", description: "Multi-panel split canvas", price: 1299, icon: "🖼", popular: true, deliveryTime: "5-7 days" },
+      { id: "canvas_panoramic", name: "Panoramic Canvas", description: "Wide panoramic canvas print", price: 999, icon: "🌅", newProduct: true, deliveryTime: "5-7 days" },
+      { id: "framed_print", name: "Framed Photo Print", description: "Professional framed print", price: 449, icon: "🖼", deliveryTime: "3-4 days" },
+      { id: "acrylic_art", name: "Acrylic Wall Art", description: "Modern acrylic photo panel", price: 899, icon: "💎", popular: true, deliveryTime: "5-7 days" },
+      { id: "wallpaper_custom", name: "Custom Wallpaper", description: "Personalized wall covering", price: 1499, icon: "🏠", newProduct: true, deliveryTime: "7-10 days" },
+      { id: "wall_sticker", name: "Wall Sticker", description: "Name/quote wall decal", price: 299, icon: "⭐", deliveryTime: "2-3 days" },
+      { id: "mini_frame", name: "Tabletop Mini Frame", description: "Small desk photo frame", price: 199, icon: "📷", fastDelivery: true, deliveryTime: "1-2 days" },
+    ]
+  },
+  {
+    id: "fast_printing",
+    title: "Fast Printing Services",
+    description: "Documents, photos & instant prints",
+    icon: "🖨",
+    startingPrice: 5,
+    isPopular: true,
+    products: [
+      { id: "doc_bw", name: "B/W Document Print", description: "Black & white A4 printing", price: 5, icon: "📄", fastDelivery: true, deliveryTime: "15 mins" },
+      { id: "doc_color", name: "Color Document Print", description: "Full color A4 printing", price: 15, icon: "🌈", fastDelivery: true, deliveryTime: "15 mins" },
+      { id: "photocopy", name: "Photocopy", description: "Quick document copying", price: 3, icon: "📋", fastDelivery: true, deliveryTime: "10 mins" },
+      { id: "scanning", name: "Document Scanning", description: "High-resolution scan to PDF", price: 10, icon: "📲", fastDelivery: true, deliveryTime: "10 mins" },
+      { id: "resume", name: "Resume Printing", description: "Professional resume print", price: 20, icon: "📝", fastDelivery: true, deliveryTime: "15 mins" },
+      { id: "project", name: "Project/Report Print", description: "Bound project printing", price: 50, icon: "📚", deliveryTime: "1-2 hours" },
+      { id: "passport_photo", name: "Passport Size Photo", description: "Set of 8 passport photos", price: 40, icon: "📸", popular: true, fastDelivery: true, deliveryTime: "10 mins" },
+      { id: "photo_4x6", name: "4x6 Photo Print", description: "Standard photo print", price: 8, icon: "🖼", fastDelivery: true, deliveryTime: "15 mins" },
+      { id: "photo_5x7", name: "5x7 Photo Print", description: "Medium photo print", price: 20, icon: "📷", deliveryTime: "15 mins" },
+      { id: "photo_8x10", name: "8x10 Photo Print", description: "Large photo print", price: 40, icon: "🏞", deliveryTime: "30 mins" },
+      { id: "poster", name: "Poster Print", description: "Large format poster", price: 99, icon: "📯", deliveryTime: "1 hour" },
+    ]
+  },
+  {
+    id: "photography",
+    title: "Photography Services",
+    description: "Event & professional photo shoots",
+    icon: "📸",
+    startingPrice: 2999,
+    isNew: true,
+    products: [
+      { id: "wedding", name: "Wedding Photography", description: "Complete wedding coverage", price: 25000, icon: "💒", popular: true, deliveryTime: "Booking required" },
+      { id: "birthday", name: "Birthday Shoot", description: "Birthday party photography", price: 4999, icon: "🎂", deliveryTime: "Booking required" },
+      { id: "engagement", name: "Engagement Shoot", description: "Romantic engagement photos", price: 7999, icon: "💍", popular: true, deliveryTime: "Booking required" },
+      { id: "anniversary", name: "Anniversary Shoot", description: "Celebration photography", price: 5999, icon: "🎉", deliveryTime: "Booking required" },
+      { id: "corporate", name: "Corporate Event", description: "Business event coverage", price: 9999, icon: "🏢", deliveryTime: "Booking required" },
+      { id: "product_photo", name: "Product Photography", description: "E-commerce product shots", price: 2999, icon: "📦", newProduct: true, deliveryTime: "3-5 days" },
+      { id: "pre_wedding", name: "Pre-Wedding Shoot", description: "Romantic outdoor shoot", price: 15000, icon: "💑", popular: true, deliveryTime: "Booking required" },
+      { id: "family_portrait", name: "Family Portrait", description: "Professional family photos", price: 3999, icon: "👨‍👩‍👧‍👦", deliveryTime: "Booking required" },
+      { id: "baby_shoot", name: "Baby Photoshoot", description: "Cute baby milestone photos", price: 4999, icon: "👶", newProduct: true, deliveryTime: "Booking required" },
+      { id: "portfolio", name: "Portfolio Shoot", description: "Model/artist portfolio", price: 7999, icon: "💫", deliveryTime: "Booking required" },
+      { id: "drone", name: "Drone Coverage", description: "Aerial photos & videos", price: 5999, icon: "🚁", newProduct: true, deliveryTime: "Booking required" },
+      { id: "live_stream", name: "Live Streaming", description: "Event live stream setup", price: 9999, icon: "📡", deliveryTime: "Booking required" },
+      { id: "photo_booth", name: "Photo Booth Setup", description: "FRAMICO instant print booth", price: 7999, icon: "🎪", popular: true, deliveryTime: "Booking required" },
+      { id: "editing", name: "Photo/Video Editing", description: "Professional retouching", price: 999, icon: "✨", deliveryTime: "2-3 days" },
+    ]
+  },
+  {
+    id: "business_printing",
+    title: "Business & Marketing",
+    description: "Banners, brochures, marketing materials",
+    icon: "📊",
+    startingPrice: 99,
+    products: [
+      { id: "banner", name: "Vinyl Banner", description: "Large outdoor banner", price: 599, icon: "🎪", popular: true, deliveryTime: "2-3 days" },
+      { id: "flex", name: "Flex Printing", description: "Durable flex signage", price: 399, icon: "📜", deliveryTime: "2-3 days" },
+      { id: "poster_large", name: "Marketing Poster", description: "A1/A2 promotional poster", price: 199, icon: "📢", deliveryTime: "1-2 days" },
+      { id: "brochure", name: "Brochures", description: "Tri-fold brochures (100 pcs)", price: 999, icon: "📖", popular: true, deliveryTime: "3-4 days" },
+      { id: "flyer", name: "Flyers", description: "Promotional flyers (100 pcs)", price: 499, icon: "📃", deliveryTime: "2-3 days" },
+      { id: "menu_card", name: "Menu Cards", description: "Restaurant menu printing", price: 299, icon: "🍽", deliveryTime: "2-3 days" },
+      { id: "stickers", name: "Custom Stickers", description: "Die-cut stickers (50 pcs)", price: 249, icon: "🏷", popular: true, deliveryTime: "2-3 days" },
+      { id: "labels", name: "Product Labels", description: "Custom product labels", price: 199, icon: "📎", deliveryTime: "2-3 days" },
+      { id: "packaging", name: "Custom Packaging", description: "Branded packaging boxes", price: 999, icon: "📦", newProduct: true, deliveryTime: "5-7 days" },
+      { id: "qr_print", name: "QR Code Prints", description: "QR code standees/cards", price: 149, icon: "📱", fastDelivery: true, deliveryTime: "1 day" },
+      { id: "lanyard", name: "Custom Lanyards", description: "Branded neck lanyards", price: 99, icon: "🎀", deliveryTime: "3-4 days" },
+      { id: "id_tag", name: "Event ID Tags", description: "Conference/event tags", price: 79, icon: "🎟", fastDelivery: true, deliveryTime: "1 day" },
+    ]
+  },
+];
+
+const DELIVERY_CHARGE = 15;
+const DISCOUNT_THRESHOLD = 500;
+const DISCOUNT_PERCENTAGE = 10;
+
+export default function Order() {
+  const navigate = useNavigate();
+  const [uploading, setUploading] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [imageFile, setImageFile] = useState(null);
+  const [imagePreview, setImagePreview] = useState(null);
+  const [user, setUser] = useState(null);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [selectedCategory, setSelectedCategory] = useState(null);
+  const [selectedProduct, setSelectedProduct] = useState(null);
+  const [step, setStep] = useState(1); // 1: category, 2: product, 3: details
+
+  const [formData, setFormData] = useState({
+    quantity: 1,
+    delivery_address: "",
+    phone: "",
+    notes: "",
+  });
+
+  useEffect(() => {
+    base44.auth.me().then(setUser).catch(() => {
+      base44.auth.redirectToLogin();
+    });
+  }, []);
+
+  const { data: previousOrders = [] } = useQuery({
+    queryKey: ["userOrders", user?.email],
+    queryFn: () => base44.entities.Order.filter({ created_by: user.email }),
+    enabled: !!user,
+  });
+
+  const isFirstOrder = previousOrders.length === 0;
+
+  // Filter categories based on search
+  const filteredCategories = productCategories.filter(cat => 
+    cat.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    cat.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    cat.products.some(p => p.name.toLowerCase().includes(searchQuery.toLowerCase()))
+  );
+
+  // Get all products matching search
+  const searchResults = searchQuery ? productCategories.flatMap(cat => 
+    cat.products.filter(p => 
+      p.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      p.description.toLowerCase().includes(searchQuery.toLowerCase())
+    ).map(p => ({ ...p, categoryId: cat.id, categoryTitle: cat.title }))
+  ) : [];
+
+  const handleImageUpload = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    if (!file.type.startsWith("image/")) {
+      toast.error("Please upload an image file");
+      return;
+    }
+
+    setImageFile(file);
+    setImagePreview(URL.createObjectURL(file));
+  };
+
+  const removeImage = () => {
+    setImageFile(null);
+    setImagePreview(null);
+  };
+
+  const calculatePricing = () => {
+    const productPrice = selectedProduct?.price || 0;
+    const subtotal = productPrice * formData.quantity;
+    const discount = subtotal >= DISCOUNT_THRESHOLD ? (subtotal * DISCOUNT_PERCENTAGE) / 100 : 0;
+    const subtotalAfterDiscount = subtotal - discount;
+    const deliveryCharge = isFirstOrder ? 0 : DELIVERY_CHARGE;
+    const total = subtotalAfterDiscount + deliveryCharge;
+    
+    return { subtotal, discount, deliveryCharge, total, subtotalAfterDiscount };
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+
+    if (!selectedProduct) {
+      toast.error("Please select a product");
+      return;
+    }
+
+    if (!formData.delivery_address || !formData.phone) {
+      toast.error("Please fill in all required fields");
+      return;
+    }
+
+    try {
+      setSubmitting(true);
+
+      let imageUrl = null;
+      if (imageFile) {
+        setUploading(true);
+        const { file_url } = await base44.integrations.Core.UploadFile({ file: imageFile });
+        imageUrl = file_url;
+        setUploading(false);
+      }
+
+      const orderNumber = FRM${Date.now().toString().slice(-8)};
+      const pricing = calculatePricing();
+      
+      const orderData = {
+        image_url: imageUrl,
+        size: selectedProduct.id,
+        quantity: formData.quantity,
+        delivery_address: formData.delivery_address,
+        phone: formData.phone,
+        notes: `${selectedCategory?.title} - ${selectedProduct.name}${formData.notes ? ` | ${formData.notes}` : ''}`,
+        price: pricing.total,
+        order_number: orderNumber,
+        status: "pending",
+      };
+
+      const order = await base44.entities.Order.create(orderData);
+      toast.success("Order placed successfully!");
+      navigate(createPageUrl(TrackOrder?id=${order.id}));
+    } catch (error) {
+      toast.error("Failed to place order. Please try again.");
+      console.error(error);
+    } finally {
+      setSubmitting(false);
+      setUploading(false);
+    }
+  };
+
+  const handleCategorySelect = (category) => {
+    setSelectedCategory(category);
+    setSelectedProduct(null);
+    setStep(2);
+  };
+
+  const handleProductSelect = (product) => {
+    setSelectedProduct(product);
+    setStep(3);
+  };
+
+  const handleBack = () => {
+    if (step === 3) {
+      setStep(2);
+      setSelectedProduct(null);
+    } else if (step === 2) {
+      setStep(1);
+      setSelectedCategory(null);
+    }
+  };
+
+  if (!user) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <Loader2 className="w-8 h-8 animate-spin text-yellow-500" />
+      </div>
+    );
+  }
+
+  const pricing = calculatePricing();
+
+  return (
+    <div className="min-h-screen py-8 px-4 sm:px-6 lg:px-8">
+      <div className="max-w-6xl mx-auto">
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5 }}
+        >
+          {/* Header */}
+          <div className="text-center mb-8">
+            <div className="flex items-center justify-center gap-3 mb-4">
+              <img 
+                src="https://qtrypzzcjebvfcihiynt.supabase.co/storage/v1/object/public/base44-prod/public/692d36669fabc5ce9da9b32d/517005f23_DT25.jpg" 
+                alt="Framico Logo"
+                className="h-20 object-contain"
+              />
+            </div>
+            <h1 className="text-3xl md:text-4xl font-bold text-gray-900 mb-3">
+              FRAMICO Marketplace
+            </h1>
+            <p className="text-gray-600 max-w-2xl mx-auto">
+              Your complete print & photo service ecosystem. Explore our wide range of customizable products and professional services.
+            </p>
+            {isFirstOrder && (
+              <Badge className="mt-4 bg-gradient-to-r from-green-500 to-emerald-500 text-white border-0 px-4 py-2 text-sm">
+                <Gift className="w-4 h-4 mr-2" />
+                🎉 Free delivery on your first order!
+              </Badge>
+            )}
+          </div>
+
+          {/* Progress Steps */}
+          <div className="flex items-center justify-center gap-2 mb-8">
+            {[1, 2, 3].map((s) => (
+              <React.Fragment key={s}>
+                <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-sm transition-all ${
+                  step >= s 
+                    ? "bg-gradient-to-br from-yellow-400 to-amber-500 text-gray-900 shadow-lg" 
+                    : "bg-gray-200 text-gray-500"
+                }`}>
+                  {s}
+                </div>
+                {s < 3 && (
+                  <div className={w-16 h-1 rounded ${step > s ? "bg-yellow-400" : "bg-gray-200"}} />
+                )}
+              </React.Fragment>
+            ))}
+          </div>
+          <div className="flex items-center justify-center gap-8 text-xs text-gray-500 mb-8">
+            <span className={step >= 1 ? "text-yellow-600 font-medium" : ""}>Category</span>
+            <span className={step >= 2 ? "text-yellow-600 font-medium" : ""}>Product</span>
+            <span className={step >= 3 ? "text-yellow-600 font-medium" : ""}>Details</span>
+          </div>
+
+          {/* Back Button */}
+          {step > 1 && (
+            <Button
+              variant="ghost"
+              onClick={handleBack}
+              className="mb-6 text-gray-600 hover:text-gray-900"
+            >
+              <ArrowLeft className="w-4 h-4 mr-2" />
+              Back
+            </Button>
+          )}
+
+          <AnimatePresence mode="wait">
+            {/* Step 1: Category Selection */}
+            {step === 1 && (
+              <motion.div
+                key="step1"
+                initial={{ opacity: 0, x: -20 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: 20 }}
+                transition={{ duration: 0.3 }}
+              >
+                {/* Search Bar */}
+                <div className="relative mb-8">
+                  <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
+                  <Input
+                    placeholder="Search products, services, or categories..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="pl-12 h-14 text-lg rounded-2xl border-2 border-gray-200 focus:border-yellow-400"
+                  />
+                </div>
+
+                {/* Search Results */}
+                {searchQuery && searchResults.length > 0 && (
+                  <Card className="p-6 mb-8 bg-gradient-to-br from-yellow-50 to-amber-50 border-yellow-200">
+                    <h3 className="font-bold text-gray-900 mb-4 flex items-center gap-2">
+                      <Sparkles className="w-5 h-5 text-yellow-600" />
+                      Search Results ({searchResults.length})
+                    </h3>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                      {searchResults.slice(0, 6).map((product, index) => (
+                        <ProductCard
+                          key={product.id}
+                          product={product}
+                          isSelected={false}
+                          onClick={() => {
+                            const cat = productCategories.find(c => c.id === product.categoryId);
+                            setSelectedCategory(cat);
+                            handleProductSelect(product);
+                          }}
+                          index={index}
+                        />
+                      )}
+                    </div>
+                  </Card>
+                
+
+                {/* Categories Grid */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {(searchQuery ? filteredCategories : productCategories).map((category, index) => (
+                    <ProductCategoryCard
+                      key={category.id}
+                      category={category}
+                      isSelected={selectedCategory?.id === category.id}
+                      onClick={() => handleCategorySelect(category)}
+                      index={index}
+                      isNew={category.isNew}
+                      isPopular={category.isPopular}
+                    />
+                  ))}
+                </div>
+              </motion.div>
+            )}
+
+            {/* Step 2: Product Selection */}
+            {step === 2 && selectedCategory && (
+              <motion.div
+                key="step2"
+                initial={{ opacity: 0, x: -20 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: 20 }}
+                transition={{ duration: 0.3 }}
+              >
+                <Card className="p-6 mb-6 bg-gradient-to-br from-gray-50 to-gray-100">
+                  <div className="flex items-center gap-4">
+                    <span className="text-4xl">{selectedCategory.icon}</span>
+                    <div>
+                      <h2 className="text-2xl font-bold text-gray-900">{selectedCategory.title}</h2>
+                      <p className="text-gray-600">{selectedCategory.description}</p>
+                    </div>
+                  </div>
+                </Card>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {selectedCategory.products.map((product, index) => (
+                    <ProductCard
+                      key={product.id}
+                      product={product}
+                      isSelected={selectedProduct?.id === product.id}
+                      onClick={() => handleProductSelect(product)}
+                      index={index}
+                    />
+                  ))}
+                </div>
+              </motion.div>
+            )}
+
+            {/* Step 3: Order Details */}
+            {step === 3 && selectedProduct && (
+              <motion.div
+                key="step3"
+                initial={{ opacity: 0, x: -20 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: 20 }}
+                transition={{ duration: 0.3 }}
+              >
+                <form onSubmit={handleSubmit} className="space-y-6">
+                  {/* Selected Product Summary */}
+                  <Card className="p-6 bg-gradient-to-br from-yellow-50 to-amber-50 border-yellow-200">
+                    <div className="flex items-start gap-4">
+                      <span className="text-5xl">{selectedProduct.icon}</span>
+                      <div className="flex-1">
+                        <Badge className="mb-2 bg-yellow-100 text-yellow-800 border-0">
+                          {selectedCategory?.title}
+                        </Badge>
+                        <h3 className="text-xl font-bold text-gray-900">{selectedProduct.name}</h3>
+                        <p className="text-gray-600">{selectedProduct.description}</p>
+                        <p className="text-2xl font-bold text-yellow-600 mt-2">₹{selectedProduct.price}</p>
+                      </div>
+                    </div>
+                  </Card>
+
+                  {/* Image Upload (Optional for some products) */}
+                  <Card className="p-6 border-2 border-dashed border-gray-300 hover:border-yellow-400 transition-colors duration-200">
+                    <div className="text-center">
+                      <Label className="text-lg font-semibold text-gray-900 mb-4 block">
+                        Upload Your Design/Photo (Optional)
+                      </Label>
+                      
+                      {!imagePreview ? (
+                        <label className="cursor-pointer">
+                          <input
+                            type="file"
+                            accept="image/*"
+                            onChange={handleImageUpload}
+                            className="hidden"
+                            disabled={uploading || submitting}
+                          />
+                          <div className="flex flex-col items-center py-8">
+                            <div className="w-16 h-16 rounded-full bg-gradient-to-br from-yellow-400 to-amber-500 flex items-center justify-center mb-4">
+                              <Upload className="w-8 h-8 text-gray-900" />
+                            </div>
+                            <p className="text-gray-600 mb-2">
+                              Click to upload your photo or design
+                            </p>
+                            <p className="text-sm text-gray-500">
+                              PNG, JPG, JPEG up to 10MB
+                            </p>
+                          </div>
+                        </label>
+                      ) : (
+                        <div className="relative">
+                          <img
+                            src={imagePreview}
+                            alt="Preview"
+                            className="max-h-48 mx-auto rounded-lg shadow-md"
+                          />
+                          <Button
+                            type="button"
+                            variant="destructive"
+                            size="icon"
+                            className="absolute top-2 right-2 rounded-full"
+                            onClick={removeImage}
+                            disabled={uploading || submitting}
+                          >
+                            <X className="w-4 h-4" />
+                          </Button>
+                        </div>
+                      )}
+                    </div>
+                  </Card>
+
+                  {/* Quantity */}
+                  <Card className="p-6">
+                    <Label htmlFor="quantity" className="text-lg font-semibold text-gray-900 mb-4 block">
+                      Quantity
+                    </Label>
+                    <Input
+                      id="quantity"
+                      type="number"
+                      min="1"
+                      value={formData.quantity}
+                      onChange={(e) =>
+                        setFormData({ ...formData, quantity: parseInt(e.target.value) || 1 })
+                      }
+                      className="max-w-xs text-lg"
+                      required
+                    />
+                  </Card>
+
+                  {/* Delivery Details */}
+                  <Card className="p-6">
+                    <Label className="text-lg font-semibold text-gray-900 mb-4 block">
+                      Delivery Details
+                    </Label>
+                    <div className="space-y-4">
+                      <div>
+                        <Label htmlFor="phone">Phone Number *</Label>
+                        <Input
+                          id="phone"
+                          type="tel"
+                          placeholder="+91 1234567890"
+                          value={formData.phone}
+                          onChange={(e) =>
+                            setFormData({ ...formData, phone: e.target.value })
+                          }
+                          required
+                        />
+                      </div>
+                      <div>
+                        <Label htmlFor="address">Delivery Address *</Label>
+                        <Textarea
+                          id="address"
+                          placeholder="Enter your complete delivery address"
+                          value={formData.delivery_address}
+                          onChange={(e) =>
+                            setFormData({ ...formData, delivery_address: e.target.value })
+                          }
+                          rows={3}
+                          required
+                        />
+                      </div>
+                      <div>
+                        <Label htmlFor="notes">Special Instructions (Optional)</Label>
+                        <Textarea
+                          id="notes"
+                          placeholder="Any special requests, customization details, or notes"
+                          value={formData.notes}
+                          onChange={(e) =>
+                            setFormData({ ...formData, notes: e.target.value })
+                          }
+                          rows={2}
+                        />
+                      </div>
+                    </div>
+                  </Card>
+
+                  {/* Price Summary */}
+                  <Card className="p-6 bg-gradient-to-br from-yellow-50 to-amber-50 border-yellow-200">
+                    <h3 className="text-lg font-semibold text-gray-900 mb-4">Price Summary</h3>
+                    
+                    <div className="space-y-3 text-sm">
+                      <div className="flex justify-between text-gray-700">
+                        <span>Subtotal ({formData.quantity} × ₹{selectedProduct.price})</span>
+                        <span className="font-medium">₹{pricing.subtotal}</span>
+                      </div>
+
+                      {pricing.discount > 0 && (
+                        <div className="flex justify-between text-green-600">
+                          <span className="flex items-center gap-2">
+                            <TrendingUp className="w-4 h-4" />
+                            Discount (10% off on ₹500+)
+                          </span>
+                          <span className="font-medium">-₹{pricing.discount.toFixed(2)}</span>
+                        </div>
+                      )}
+
+                      <div className="flex justify-between text-gray-700">
+                        <span>Delivery Charge</span>
+                        {isFirstOrder ? (
+                          <span className="font-medium text-green-600 flex items-center gap-1">
+                            <Gift className="w-4 h-4" />
+                            FREE
+                          </span>
+                        ) : (
+                          <span className="font-medium">₹{pricing.deliveryCharge}</span>
+                        )}
+                      </div>
+
+                      {pricing.subtotal < DISCOUNT_THRESHOLD && (
+                        <div className="text-xs text-amber-600 bg-amber-50 p-2 rounded-lg border border-amber-200">
+                          💡 Add ₹{DISCOUNT_THRESHOLD - pricing.subtotal} more to get 10% discount!
+                        </div>
+                      )}
+
+                      <div className="pt-3 border-t-2 border-gray-300">
+                        <div className="flex justify-between items-center">
+                          <span className="text-lg font-semibold text-gray-900">Total Amount</span>
+                          <span className="text-3xl font-bold text-gray-900">
+                            ₹{pricing.total.toFixed(2)}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  </Card>
+
+                  {/* Submit Button */}
+                  <Button
+                    type="submit"
+                    size="lg"
+                    disabled={submitting || uploading}
+                    className="btn-primary w-full rounded-full h-14 text-base shadow-lg"
+                  >
+                    {submitting ? (
+                      <>
+                        <Loader2 className="w-5 h-5 mr-2 animate-spin" />
+                        Placing Order...
+                      </>
+                    ) : (
+                      <>
+                        <CheckCircle2 className="w-5 h-5 mr-2" />
+                        Place Order - ₹{pricing.total.toFixed(2)}
+                      </>
+                    )}
+                  </Button>
+                </form>
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </motion.div>
+      </div>
+    </div>
+  );
+}
